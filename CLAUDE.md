@@ -85,12 +85,17 @@ The config file loads .env.local (Next.js convention) via dotenv before falling 
 | 7 | Star Ratings | Inline rating, AI suggestions, average display, rating filter |
 
 ## Current phase
-Phase 1 — Scaffold & Config
+Phase 3 — SmugMug Integration
 
 ## Completed phases
-None
+- Phase 1 — Scaffold & Config
+- Phase 2 — Auth
+
+## Next.js 16 notes
+- Use `proxy.ts` instead of `middleware.ts` (renamed in Next.js 16; middleware.ts shows deprecation warning)
+- Vercel deployment: use `vercel build --yes --prod && vercel deploy --prebuilt --prod` (auto-detection doesn't work without this)
 
 ## Known issues / deferred items
 - AWS IAM user for Rekognition needs to be created (Phase 4 prerequisite)
-- SmugMug OAuth credentials need to be obtained (Phase 3 prerequisite)
 - Google Maps Geocoding API key needed (Phase 4)
+- SmugMug access token/secret still needed (Phase 3) — API key/secret already in .env.local
