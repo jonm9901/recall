@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Gallery {
+  id             String    @id @default(cuid())
+  smugmugId      String    @unique
+  title          String
+  locationName   String?
+  city           String?
+  region         String?
+  country        String?
+  dateRangeStart DateTime?
+  dateRangeEnd   DateTime?
+  smugmugUrl     String?
+  excluded       Boolean   @default(false)
+  photos         Photo[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Photo {
+  id             String        @id @default(cuid())
+  galleryId      String
+  gallery        Gallery       @relation(fields: [galleryId], references: [id])
+  smugmugPhotoId String        @unique
+  imageUrl       String
+  thumbnailUrl   String
+  takenAt        DateTime?
+  lat            Float?
+  lng            Float?
+  locationName   String?
+  locationSource String?       // gps_exif | gallery_title | none
+  city           String?
+  region         String?
+  country        String?
+  avgRating      Float?        // denormalized average for fast filtering
+  indexedAt      DateTime?
+  people         PhotoPerson[]
+  tags           PhotoTag[]
+  ratings        Rating[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Person {
+  id                String        @id @default(cuid())
+  name              String
+  rekognitionFaceId String?       @unique
+  coverPhotoUrl     String?
+  photos            PhotoPerson[]
+  createdAt         DateTime      @default(now())
+}
+
+model PhotoPerson {
+  photoId           String
+  personId          String
+  photo             Photo   @relation(fields: [photoId], references: [id])
+  person            Person  @relation(fields: [personId], references: [id])
+  confidence        Float?
+  clusterGroupId    String?
+  flagged           Boolean @default(false)
+  boundingBoxTop    Float?
+  boundingBoxLeft   Float?
+  boundingBoxWidth  Float?
+  boundingBoxHeight Float?
+
+  @@id([photoId, personId])
+}
+
+model PhotoTag {
+  id         String  @id @default(cuid())
+  photoId    String
+  photo      Photo   @relation(fields: [photoId], references: [id])
+  tag        String
+  confidence Float?
+  source     String  // rekognition | ai_rating_model
+}
+
+model Rating {
+  id               String   @id @default(cuid())
+  photoId          String
+  userId           String
+  photo            Photo    @relation(fields: [photoId], references: [id])
+  user             User     @relation(fields: [userId], references: [id])
+  stars            Int
+  aiSuggestedStars Int?
+  aiRatingReason   String?
+  ratedAt          DateTime @default(now())
+
+  @@unique([photoId, userId])
+}
+
+model User {
+  id          String        @id @default(cuid())
+  name        String
+  email       String        @unique
+  password    String
+  invitedById String?
+  ratings     Rating[]
+  invitesSent InviteToken[]
+  createdAt   DateTime      @default(now())
+}
+
+model InviteToken {
+  id          String   @id @default(cuid())
+  token       String   @unique @default(cuid())
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  used        Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}
