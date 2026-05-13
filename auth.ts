@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { getSmugmugCookieAuthHeader } from "@/lib/smugmug";
 
 function getPrisma() {
   const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -57,7 +58,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token?.id) {
         session.user.id = token.id as string;
       }
-      // Phase 3: callSmugmugCookieAuth() will be called here
+      // Set SmugMug site-password cookie so CDN images load for this user
+      await getSmugmugCookieAuthHeader();
       return session;
     },
   },

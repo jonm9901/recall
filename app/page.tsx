@@ -36,6 +36,9 @@ export default async function Home() {
             <a href="/settings/users" className="text-blue-400 hover:text-blue-300 transition-colors">
               Manage users →
             </a>
+            <a href="/admin/sync" className="text-blue-400 hover:text-blue-300 transition-colors">
+              Sync SmugMug →
+            </a>
           </div>
         </div>
       </main>
