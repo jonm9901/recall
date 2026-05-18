@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/admin/faces?filter=unnamed|named|all&page=1&q=
+// GET /api/admin/faces?filter=unnamed|named|all&page=1&q=&sort=popular|alpha|recent
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const filter = searchParams.get("filter") ?? "all";
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
   const q = searchParams.get("q") ?? "";
+  const sort = searchParams.get("sort") ?? "popular";
   const PAGE_SIZE = 48;
 
   const where: Record<string, unknown> = {};
@@ -20,12 +21,15 @@ export async function GET(req: NextRequest) {
   if (filter === "named") where.name = { not: "" };
   if (q) where.name = { contains: q, mode: "insensitive" };
 
-  // Deferred persons sort last (false < true in asc order).
-  // Named tab: secondary sort by photo count. Others: by creation date.
-  const orderBy =
-    filter === "named"
-      ? ([{ deferred: "asc" }, { photos: { _count: "desc" } }] as const)
-      : ([{ deferred: "asc" }, { createdAt: "asc" }] as const);
+  // Deferred persons always sort last. Secondary sort depends on requested sort order.
+  type OrderBy = Record<string, unknown>;
+  const secondarySort: OrderBy =
+    sort === "alpha" ? { name: "asc" } :
+    sort === "recent" ? { createdAt: "desc" } :
+    filter === "unnamed" ? { createdAt: "asc" } :
+    { photos: { _count: "desc" } }; // popular (default)
+
+  const orderBy = [{ deferred: "asc" }, secondarySort];
 
   try {
     const [total, persons] = await Promise.all([

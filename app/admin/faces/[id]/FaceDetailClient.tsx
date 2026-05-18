@@ -55,6 +55,7 @@ export default function FaceDetailClient() {
   const [namedPersons, setNamedPersons] = useState<PersonSummary[]>([]);
   const [namedTotal, setNamedTotal] = useState(0);
   const [mergeSearch, setMergeSearch] = useState("");
+  const [mergeSort, setMergeSort] = useState<"popular" | "alpha" | "recent">("popular");
   const [mergingId, setMergingId] = useState<string | null>(null);
   const mergeSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -81,8 +82,8 @@ export default function FaceDetailClient() {
     }
   }, [id, router]);
 
-  const loadNamedPersons = useCallback(async (q: string) => {
-    const params = new URLSearchParams({ filter: "named", page: "1" });
+  const loadNamedPersons = useCallback(async (q: string, sort: "popular" | "alpha" | "recent" = "popular") => {
+    const params = new URLSearchParams({ filter: "named", page: "1", sort });
     if (q) params.set("q", q);
     const res = await fetch(`/api/admin/faces?${params}`);
     const data = await res.json();
@@ -116,7 +117,12 @@ export default function FaceDetailClient() {
     const q = e.target.value;
     setMergeSearch(q);
     if (mergeSearchTimeout.current) clearTimeout(mergeSearchTimeout.current);
-    mergeSearchTimeout.current = setTimeout(() => loadNamedPersons(q), 250);
+    mergeSearchTimeout.current = setTimeout(() => loadNamedPersons(q, mergeSort), 250);
+  }
+
+  function handleMergeSortChange(sort: "popular" | "alpha" | "recent") {
+    setMergeSort(sort);
+    loadNamedPersons(mergeSearch, sort);
   }
 
   async function handleRename(e: React.FormEvent) {
@@ -479,13 +485,30 @@ export default function FaceDetailClient() {
                 Merge with existing person
                 {namedTotal > 0 && <span className="ml-2 text-gray-600 normal-case">({namedTotal} named)</span>}
               </div>
-              <input
-                type="text"
-                value={mergeSearch}
-                onChange={handleMergeSearchChange}
-                placeholder="Filter by name…"
-                className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 w-44"
-              />
+              <div className="flex items-center gap-2">
+                <div className="flex gap-0.5">
+                  {(["popular", "alpha", "recent"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleMergeSortChange(s)}
+                      className={`px-2 py-1 text-xs rounded transition-colors capitalize ${
+                        mergeSort === s
+                          ? "bg-gray-700 text-white"
+                          : "text-gray-500 hover:text-gray-300"
+                      }`}
+                    >
+                      {s === "popular" ? "Popular" : s === "alpha" ? "A–Z" : "Recent"}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={mergeSearch}
+                  onChange={handleMergeSearchChange}
+                  placeholder="Filter by name…"
+                  className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 w-36"
+                />
+              </div>
             </div>
 
             {namedPersons.length === 0 ? (
