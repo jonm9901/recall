@@ -124,6 +124,7 @@ export default function SearchPage() {
           <span className="font-bold text-lg tracking-tight">Total Recall</span>
         </div>
         <div className="flex items-center gap-4">
+          <a href="/stats" className="text-sm text-gray-400 hover:text-white transition-colors">Stats</a>
           <a href="/admin/sync" className="text-sm text-gray-400 hover:text-white transition-colors">Sync</a>
           <a href="/admin/index" className="text-sm text-gray-400 hover:text-white transition-colors">Index</a>
           <a href="/admin/faces" className="text-sm text-gray-400 hover:text-white transition-colors">Faces</a>

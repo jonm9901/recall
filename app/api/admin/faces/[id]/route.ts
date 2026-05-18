@@ -39,6 +39,7 @@ export async function GET(
   return NextResponse.json({
     id: person.id,
     name: person.name,
+    deferred: person.deferred,
     coverPhotoUrl: person.coverPhotoUrl,
     photoCount: person._count.photos,
     photos: person.photos.map((pp) => ({

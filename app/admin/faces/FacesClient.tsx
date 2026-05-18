@@ -7,6 +7,7 @@ import Link from "next/link";
 type PersonSummary = {
   id: string;
   name: string;
+  deferred: boolean;
   coverPhotoUrl: string | null;
   photoCount: number;
   samplePhotos: { photoId: string; thumbnailUrl: string }[];
@@ -27,17 +28,23 @@ export default function FacesClient() {
   const [pages, setPages] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const load = useCallback(async (f: Filter, query: string, pg: number) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams({ filter: f, page: String(pg) });
       if (query) params.set("q", query);
       const res = await fetch(`/api/admin/faces?${params}`);
       const data = await res.json();
+      if (!res.ok) { setLoadError(data.error ?? "Unknown error"); return; }
       setPersons(data.persons);
       setTotal(data.total);
       setPage(data.page);
       setPages(data.pages);
+    } catch (e) {
+      setLoadError(String(e));
     } finally {
       setLoading(false);
     }
@@ -107,7 +114,11 @@ export default function FacesClient() {
           <div className="text-center py-20 text-gray-500 text-sm">Loading…</div>
         )}
 
-        {!loading && persons.length === 0 && (
+        {loadError && (
+          <div className="text-center py-20 text-red-400 text-sm font-mono">{loadError}</div>
+        )}
+
+        {!loading && !loadError && persons.length === 0 && (
           <div className="text-center py-20 text-gray-500 text-sm">No people found.</div>
         )}
 
@@ -119,7 +130,9 @@ export default function FacesClient() {
                 href={`/admin/faces/${person.id}`}
                 className="group flex flex-col items-center gap-2 hover:opacity-80 transition-opacity"
               >
-                <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-800 flex-shrink-0 ring-2 ring-transparent group-hover:ring-blue-500 transition-all">
+                <div className={`relative w-20 h-20 rounded-full overflow-hidden bg-gray-800 flex-shrink-0 ring-2 transition-all ${
+                  person.deferred ? "ring-yellow-600 opacity-60" : "ring-transparent group-hover:ring-blue-500"
+                }`}>
                   {person.coverPhotoUrl ? (
                     <img
                       src={person.coverPhotoUrl}
@@ -129,6 +142,11 @@ export default function FacesClient() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-600 text-2xl">
                       ?
+                    </div>
+                  )}
+                  {person.deferred && (
+                    <div className="absolute inset-0 flex items-end justify-center pb-1">
+                      <span className="text-[9px] bg-yellow-700/80 text-yellow-200 px-1.5 py-0.5 rounded-full leading-none">deferred</span>
                     </div>
                   )}
                 </div>

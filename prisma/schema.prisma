@@ -54,6 +54,7 @@ model Person {
   name              String
   rekognitionFaceId String?       @unique
   coverPhotoUrl     String?
+  deferred          Boolean       @default(false)
   photos            PhotoPerson[]
   createdAt         DateTime      @default(now())
 }

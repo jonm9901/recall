@@ -20,43 +20,54 @@ export async function GET(req: NextRequest) {
   if (filter === "named") where.name = { not: "" };
   if (q) where.name = { contains: q, mode: "insensitive" };
 
-  const [total, persons] = await Promise.all([
-    prisma.person.count({ where }),
-    prisma.person.findMany({
-      where,
-      orderBy: filter === "named"
-        ? [{ photos: { _count: "desc" } }]
-        : [{ name: "asc" }],
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      include: {
-        photos: {
-          take: 4,
-          orderBy: { photo: { takenAt: "asc" } },
-          include: {
-            photo: {
-              select: { id: true, thumbnailUrl: true, takenAt: true },
+  // Deferred persons sort last (false < true in asc order).
+  // Named tab: secondary sort by photo count. Others: by creation date.
+  const orderBy =
+    filter === "named"
+      ? ([{ deferred: "asc" }, { photos: { _count: "desc" } }] as const)
+      : ([{ deferred: "asc" }, { createdAt: "asc" }] as const);
+
+  try {
+    const [total, persons] = await Promise.all([
+      prisma.person.count({ where }),
+      prisma.person.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        include: {
+          photos: {
+            take: 4,
+            orderBy: { photo: { takenAt: "asc" } },
+            include: {
+              photo: {
+                select: { id: true, thumbnailUrl: true, takenAt: true },
+              },
             },
           },
+          _count: { select: { photos: true } },
         },
-        _count: { select: { photos: true } },
-      },
-    }),
-  ]);
+      }),
+    ]);
 
-  return NextResponse.json({
-    persons: persons.map((p) => ({
-      id: p.id,
-      name: p.name,
-      coverPhotoUrl: p.coverPhotoUrl ?? p.photos[0]?.photo.thumbnailUrl ?? null,
-      photoCount: p._count.photos,
-      samplePhotos: p.photos.map((pp) => ({
-        photoId: pp.photoId,
-        thumbnailUrl: pp.photo.thumbnailUrl,
+    return NextResponse.json({
+      persons: persons.map((p) => ({
+        id: p.id,
+        name: p.name,
+        deferred: p.deferred,
+        coverPhotoUrl: p.coverPhotoUrl ?? p.photos[0]?.photo.thumbnailUrl ?? null,
+        photoCount: p._count.photos,
+        samplePhotos: p.photos.map((pp) => ({
+          photoId: pp.photoId,
+          thumbnailUrl: pp.photo.thumbnailUrl,
+        })),
       })),
-    })),
-    total,
-    page,
-    pages: Math.ceil(total / PAGE_SIZE),
-  });
+      total,
+      page,
+      pages: Math.ceil(total / PAGE_SIZE),
+    });
+  } catch (err) {
+    console.error("[faces] query error:", err);
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
 }

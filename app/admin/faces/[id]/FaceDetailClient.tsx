@@ -19,6 +19,7 @@ type PhotoEntry = {
 type PersonDetail = {
   id: string;
   name: string;
+  deferred: boolean;
   coverPhotoUrl: string | null;
   photoCount: number;
   photos: PhotoEntry[];
@@ -48,6 +49,7 @@ export default function FaceDetailClient() {
   const [nameInput, setNameInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deferring, setDeferring] = useState(false);
 
   // Named persons for quick merge
   const [namedPersons, setNamedPersons] = useState<PersonSummary[]>([]);
@@ -93,13 +95,17 @@ export default function FaceDetailClient() {
     loadNamedPersons("");
     setTimeout(() => nameInputRef.current?.focus(), 100);
 
-    // Restore suggestions carried over from a previous merge
+    // Restore suggestions only if they were saved for this specific person
     const stored = sessionStorage.getItem("face-suggestions");
     if (stored) {
       try {
-        const restored: SimilarSuggestion[] = JSON.parse(stored);
-        setSuggestions(restored);
-        setSuggestionsReady(true);
+        const { forPersonId, suggestions: restored } = JSON.parse(stored);
+        if (forPersonId === id) {
+          setSuggestions(restored);
+          setSuggestionsReady(true);
+        } else {
+          sessionStorage.removeItem("face-suggestions");
+        }
       } catch {
         sessionStorage.removeItem("face-suggestions");
       }
@@ -192,10 +198,10 @@ export default function FaceDetailClient() {
       if (!res.ok) return;
       const data = await res.json();
       if (stayOnPage) {
-        // Persist remaining suggestions so they survive the navigation
+        // Persist remaining suggestions tagged to the destination person ID
         const remaining = (suggestions ?? []).filter((s) => s.id !== intoId);
         if (remaining.length > 0) {
-          sessionStorage.setItem("face-suggestions", JSON.stringify(remaining));
+          sessionStorage.setItem("face-suggestions", JSON.stringify({ forPersonId: data.mergedIntoId, suggestions: remaining }));
         } else {
           sessionStorage.removeItem("face-suggestions");
         }
@@ -217,6 +223,24 @@ export default function FaceDetailClient() {
       router.push("/admin/faces?filter=unnamed");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleDefer() {
+    setDeferring(true);
+    try {
+      const res = await fetch(`/api/admin/faces/${id}/defer`, { method: "POST" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.deferred) {
+        // Deferred — go back to the list so the user can keep working
+        router.push("/admin/faces?filter=unnamed");
+      } else {
+        // Un-deferred — update local state
+        setPerson((prev) => prev ? { ...prev, deferred: false } : prev);
+      }
+    } finally {
+      setDeferring(false);
     }
   }
 
@@ -269,6 +293,21 @@ export default function FaceDetailClient() {
           <div>
             <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Person ID</div>
             <code className="text-xs text-gray-600 break-all">{person.id}</code>
+          </div>
+
+          {/* Defer / Un-defer */}
+          <div className="pt-2 border-t border-gray-800">
+            <button
+              onClick={handleDefer}
+              disabled={deferring}
+              className={`w-full text-xs disabled:opacity-40 py-2 transition-colors ${
+                person.deferred
+                  ? "text-yellow-400 hover:text-yellow-300"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              {deferring ? "…" : person.deferred ? "Un-defer (move to front)" : "Defer (skip for now)"}
+            </button>
           </div>
 
           {/* Delete */}
