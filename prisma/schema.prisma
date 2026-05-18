@@ -38,8 +38,10 @@ model Photo {
   city           String?
   region         String?
   country        String?
-  avgRating      Float?        // denormalized average for fast filtering
-  indexedAt      DateTime?
+  avgRating          Float?        // denormalized average for fast filtering
+  aiSuggestedStars   Int?          // Claude's suggested rating (1-5)
+  aiSuggestedReason  String?       // brief reason for the suggestion
+  indexedAt          DateTime?
   people         PhotoPerson[]
   tags           PhotoTag[]
   ratings        Rating[]

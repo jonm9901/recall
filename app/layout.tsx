@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 
 const geist = Geist({
   variable: "--font-geist-sans",
@@ -8,7 +9,7 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Recall",
+  title: "Total Recall",
   description: "Personal photo intelligence layer",
 };
 

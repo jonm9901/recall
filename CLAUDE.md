@@ -83,19 +83,46 @@ The config file loads .env.local (Next.js convention) via dotenv before falling 
 | 5 | Search & Results UI | Search bar, filters, photo grid, list view, map view |
 | 6 | Face Labeling | Cluster review, name assignment, flag mismatches, merge |
 | 7 | Star Ratings | Inline rating, AI suggestions, average display, rating filter |
+| 8 | Claude Vision Tagging | Haiku vision pass: contextual tags + captions for all photos |
 
 ## Current phase
-Phase 3 — SmugMug Integration
+Phase 7 complete — ready for Phase 8 (Claude Vision Tagging)
 
 ## Completed phases
 - Phase 1 — Scaffold & Config
 - Phase 2 — Auth
+- Phase 3 — SmugMug Integration (675 galleries, 39,717 photos synced; 1 excluded)
+- Phase 4 — Indexing Pipeline (39,717 photos indexed; 468,596 tags; 28,285 face links)
+- Phase 5 — Search & Results UI (+ forward geocoding pass: 22 photos updated via Nominatim)
+- Phase 6 — Face Labeling (cluster grid, name assignment, bounding box overlay, one-click merge)
+- Phase 7 — Star Ratings (inline 5-star widget, AI suggestion via Claude Haiku, avgRating filter in search)
+
+## Phase 4 notes
+- Rekognition collection: `recall-faces` (us-west-2)
+- Pipeline: DetectLabels (scene tags ≥70% confidence) + IndexFaces + SearchFaces (85% threshold for clustering) + Nominatim reverse geocoding
+- Script: `npx ts-node --project tsconfig.scripts.json scripts/index-photos.ts`
+- Admin UI: /admin/index — shows progress, faces, tags, geocoded count
+- ~500ms per photo; ~39,700 photos → ~5-6 hour full run
+- Re-runnable: skips photos where indexedAt is not null
+- Geocoding uses Nominatim (free, no key) — rate limited to 1 req/sec
+
+## Phase 5 requirements / notes
+- Add forward geocoding pass: photos with `locationName` (from gallery title) but no `city` should be geocoded via Nominatim lookup of the location string → fill in `city`, `region`, `country`. Most photos were taken on an SLR with no GPS, so gallery-title location is the primary source of structured location data.
+
+## Phase 8 requirements / notes
+- Model: `claude-haiku-4-5-20251001` (~$75–100 one-time for 39,700 photos)
+- Uses existing `AI_RATING_API_KEY`; set `AI_RATING_MODEL=claude-haiku-4-5-20251001`
+- Schema additions: `Photo.caption` (String?), `Photo.visionTaggedAt` (DateTime?)
+- New `PhotoTag` rows with `source = "claude_vision"`
+- Tags to extract: occasion (birthday, wedding, graduation…), activity (hiking, skiing…), season, setting, specific subjects Rekognition misses
+- Pass existing Rekognition tags as context so Claude focuses on what's missing
+- Script: `scripts/vision-tag-photos.ts` — batch 10, 500ms delay, skips `visionTaggedAt IS NOT NULL`
+- Admin trigger: "Vision Tag" button on `/admin/index`
+- Search: add `caption` to the OR clause in `/api/search`
 
 ## Next.js 16 notes
 - Use `proxy.ts` instead of `middleware.ts` (renamed in Next.js 16; middleware.ts shows deprecation warning)
 - Vercel deployment: use `vercel build --yes --prod && vercel deploy --prebuilt --prod` (auto-detection doesn't work without this)
 
 ## Known issues / deferred items
-- AWS IAM user for Rekognition needs to be created (Phase 4 prerequisite)
-- Google Maps Geocoding API key needed (Phase 4)
-- SmugMug access token/secret still needed (Phase 3) — API key/secret already in .env.local
+- Google Maps Geocoding API key not needed — using Nominatim (free)
