@@ -30,9 +30,12 @@ export default async function UsersPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <div className="max-w-2xl mx-auto px-4 py-12">
-        <div className="mb-8">
+        <div className="mb-8 flex items-center justify-between">
           <a href="/" className="text-sm text-gray-400 hover:text-white transition-colors">
             ← Back to search
+          </a>
+          <a href="/settings/hidden" className="text-sm text-gray-400 hover:text-white transition-colors">
+            Hidden Photos →
           </a>
         </div>
 

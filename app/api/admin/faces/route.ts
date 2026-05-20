@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
         include: {
           photos: {
             take: 4,
+            where: { photo: { hidden: false } },
             orderBy: { photo: { takenAt: "asc" } },
             include: {
               photo: {

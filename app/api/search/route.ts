@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   // Build the where clause
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = {
+    hidden: false,
     gallery: { excluded: false },
   };
 

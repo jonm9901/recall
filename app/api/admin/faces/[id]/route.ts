@@ -18,6 +18,7 @@ export async function GET(
     where: { id },
     include: {
       photos: {
+        where: { photo: { hidden: false } },
         orderBy: { photo: { takenAt: "asc" } },
         include: {
           photo: {
@@ -56,7 +57,7 @@ export async function GET(
   });
 }
 
-// PATCH /api/admin/faces/[id] — rename person
+// PATCH /api/admin/faces/[id] — update person (name and/or coverPhotoUrl)
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -65,18 +66,27 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { name } = await req.json();
+  const body = await req.json();
 
-  if (!name || typeof name !== "string" || !name.trim()) {
-    return NextResponse.json({ error: "Name required" }, { status: 400 });
+  const data: { name?: string; coverPhotoUrl?: string } = {};
+
+  if (body.name !== undefined) {
+    if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
+      return NextResponse.json({ error: "Name required" }, { status: 400 });
+    }
+    data.name = body.name.trim();
+  }
+
+  if (body.coverPhotoUrl !== undefined) {
+    data.coverPhotoUrl = body.coverPhotoUrl;
   }
 
   const person = await prisma.person.update({
     where: { id },
-    data: { name: name.trim() },
+    data,
   });
 
-  return NextResponse.json({ id: person.id, name: person.name });
+  return NextResponse.json({ id: person.id, name: person.name, coverPhotoUrl: person.coverPhotoUrl });
 }
 
 // DELETE /api/admin/faces/[id] — delete person (removes all PhotoPerson links)

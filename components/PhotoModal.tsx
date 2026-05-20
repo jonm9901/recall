@@ -56,8 +56,9 @@ function StarRating({
   );
 }
 
-export default function PhotoModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
+export default function PhotoModal({ photo, onClose, onHide }: { photo: Photo; onClose: () => void; onHide?: (photoId: string) => void }) {
   const [userStars, setUserStars] = useState<number | null>(null);
+  const [hiding, setHiding] = useState(false);
   const [avgRating, setAvgRating] = useState<number | null>(photo.avgRating);
   const [aiStars, setAiStars] = useState<number | null>(null);
   const [aiReason, setAiReason] = useState<string | null>(null);
@@ -263,6 +264,25 @@ export default function PhotoModal({ photo, onClose }: { photo: Photo; onClose: 
               className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
               Open full resolution ↗
             </a>
+          </div>
+
+          {/* Hide */}
+          <div className="pt-2 border-t border-gray-800">
+            <button
+              disabled={hiding}
+              onClick={async () => {
+                setHiding(true);
+                try {
+                  const res = await fetch(`/api/photos/${photo.id}/hide`, { method: "POST" });
+                  if (res.ok) onHide?.(photo.id);
+                } finally {
+                  setHiding(false);
+                }
+              }}
+              className="text-xs text-red-600 hover:text-red-400 disabled:opacity-40 transition-colors"
+            >
+              {hiding ? "Hiding…" : "Hide this photo"}
+            </button>
           </div>
         </div>
       </div>

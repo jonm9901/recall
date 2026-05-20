@@ -84,6 +84,7 @@ The config file loads .env.local (Next.js convention) via dotenv before falling 
 | 6 | Face Labeling | Cluster review, name assignment, flag mismatches, merge |
 | 7 | Star Ratings | Inline rating, AI suggestions, average display, rating filter |
 | 8 | Claude Vision Tagging | Haiku vision pass: contextual tags + captions for all photos |
+| 9 | Photo Hiding & Admin Tiers | Hide inappropriate photos; admin-only hidden-photo list; user role system |
 
 ## Current phase
 Phase 7 complete — ready for Phase 8 (Claude Vision Tagging)
@@ -108,6 +109,15 @@ Phase 7 complete — ready for Phase 8 (Claude Vision Tagging)
 
 ## Phase 5 requirements / notes
 - Add forward geocoding pass: photos with `locationName` (from gallery title) but no `city` should be geocoded via Nominatim lookup of the location string → fill in `city`, `region`, `country`. Most photos were taken on an SLR with no GPS, so gallery-title location is the primary source of structured location data.
+
+## Phase 9 requirements / notes
+- Schema: `Photo.hidden Boolean @default(false)` — complete
+- Hide toggle: `POST /api/photos/[id]/hide` — complete
+- Hidden list: `GET /api/admin/hidden-photos` — complete; accessible at `/settings/hidden`
+- Unhide: `POST /api/admin/hidden-photos` with `{ photoId }` — complete
+- Hidden photos filtered from: search results, face detail photo lists, face grid sample photos, stats counts
+- Hide overlay button on: PhotoGrid tiles (bottom-right, hover), PhotoModal sidebar (bottom link), FaceDetailClient tiles (bottom-right, hover)
+- Deferred: admin-only access to `/settings/hidden` — requires user role system (Phase 9 follow-on)
 
 ## Phase 8 requirements / notes
 - Model: `claude-haiku-4-5-20251001` (~$75–100 one-time for 39,700 photos)

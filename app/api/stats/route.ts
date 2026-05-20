@@ -26,9 +26,9 @@ export async function GET() {
     topGalleries,
     tagSources,
   ] = await Promise.all([
-    prisma.photo.count(),
-    prisma.photo.count({ where: { indexedAt: { not: null } } }),
-    prisma.photo.count({ where: { lat: { not: null } } }),
+    prisma.photo.count({ where: { hidden: false } }),
+    prisma.photo.count({ where: { hidden: false, indexedAt: { not: null } } }),
+    prisma.photo.count({ where: { hidden: false, lat: { not: null } } }),
     prisma.gallery.count({ where: { excluded: false } }),
     prisma.person.count(),
     prisma.person.count({ where: { name: { not: "" } } }),

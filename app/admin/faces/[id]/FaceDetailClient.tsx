@@ -50,6 +50,8 @@ export default function FaceDetailClient() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deferring, setDeferring] = useState(false);
+  const [settingCover, setSettingCover] = useState<string | null>(null);
+  const [hidingPhoto, setHidingPhoto] = useState<string | null>(null);
 
   // Named persons for quick merge
   const [namedPersons, setNamedPersons] = useState<PersonSummary[]>([]);
@@ -232,6 +234,19 @@ export default function FaceDetailClient() {
     }
   }
 
+  async function handleHidePhoto(photoId: string) {
+    setHidingPhoto(photoId);
+    try {
+      const res = await fetch(`/api/photos/${photoId}/hide`, { method: "POST" });
+      if (!res.ok) return;
+      setPerson((prev) =>
+        prev ? { ...prev, photoCount: prev.photoCount - 1, photos: prev.photos.filter((p) => p.photoId !== photoId) } : prev
+      );
+    } finally {
+      setHidingPhoto(null);
+    }
+  }
+
   async function handleDefer() {
     setDeferring(true);
     try {
@@ -247,6 +262,21 @@ export default function FaceDetailClient() {
       }
     } finally {
       setDeferring(false);
+    }
+  }
+
+  async function handleSetCover(thumbnailUrl: string) {
+    setSettingCover(thumbnailUrl);
+    try {
+      const res = await fetch(`/api/admin/faces/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coverPhotoUrl: thumbnailUrl }),
+      });
+      if (!res.ok) return;
+      setPerson((prev) => prev ? { ...prev, coverPhotoUrl: thumbnailUrl } : prev);
+    } finally {
+      setSettingCover(null);
     }
   }
 
@@ -293,6 +323,21 @@ export default function FaceDetailClient() {
                 {saving ? "Saving…" : "Save name"}
               </button>
             </form>
+          </div>
+
+          {/* Avatar */}
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Avatar</div>
+            <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-800 ring-2 ring-gray-700">
+              {person.coverPhotoUrl ? (
+                <img src={person.coverPhotoUrl} alt={person.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-600 text-2xl">?</div>
+              )}
+            </div>
+            {!person.coverPhotoUrl && (
+              <p className="text-xs text-gray-600 mt-1.5">Hover a photo to set one</p>
+            )}
           </div>
 
           {/* Person ID */}
@@ -354,6 +399,26 @@ export default function FaceDetailClient() {
                       }}
                     />
                   )}
+                  {/* Current avatar indicator */}
+                  {person.coverPhotoUrl === photo.thumbnailUrl && (
+                    <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center" title="Current avatar">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <circle cx="5" cy="5" r="4" stroke="white" strokeWidth="1.5"/>
+                        <circle cx="5" cy="5" r="2" fill="white"/>
+                      </svg>
+                    </div>
+                  )}
+                  {/* Set as avatar button */}
+                  {person.coverPhotoUrl !== photo.thumbnailUrl && (
+                    <button
+                      onClick={() => handleSetCover(photo.thumbnailUrl)}
+                      disabled={settingCover !== null}
+                      className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-black/60 text-gray-300 opacity-0 group-hover:opacity-100 hover:bg-black/80 hover:text-white transition-all disabled:opacity-40"
+                      title="Set as avatar"
+                    >
+                      {settingCover === photo.thumbnailUrl ? "…" : "Avatar"}
+                    </button>
+                  )}
                   {/* Split button */}
                   <button
                     onClick={() => handleSplit(photo.photoId)}
@@ -361,6 +426,15 @@ export default function FaceDetailClient() {
                     title="Split into new person"
                   >
                     Split
+                  </button>
+                  {/* Hide button */}
+                  <button
+                    onClick={() => handleHidePhoto(photo.photoId)}
+                    disabled={hidingPhoto === photo.photoId}
+                    className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-black/60 text-gray-300 opacity-0 group-hover:opacity-100 hover:bg-red-900/80 hover:text-red-200 transition-all disabled:opacity-40"
+                    title="Hide photo"
+                  >
+                    {hidingPhoto === photo.photoId ? "…" : "Hide"}
                   </button>
                 </div>
               ))}

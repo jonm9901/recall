@@ -38,6 +38,7 @@ model Photo {
   city           String?
   region         String?
   country        String?
+  hidden             Boolean       @default(false)
   avgRating          Float?        // denormalized average for fast filtering
   aiSuggestedStars   Int?          // Claude's suggested rating (1-5)
   aiSuggestedReason  String?       // brief reason for the suggestion
