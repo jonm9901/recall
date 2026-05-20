@@ -48,6 +48,7 @@ export default function FaceDetailClient() {
   const [loading, setLoading] = useState(true);
   const [nameInput, setNameInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [duplicateCheck, setDuplicateCheck] = useState<PersonSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deferring, setDeferring] = useState(false);
   const [settingCover, setSettingCover] = useState<string | null>(null);
@@ -178,13 +179,26 @@ export default function FaceDetailClient() {
 
   async function handleRename(e: React.FormEvent) {
     e.preventDefault();
-    if (!nameInput.trim()) return;
+    const trimmed = nameInput.trim();
+    if (!trimmed) return;
+
+    // Check for an existing person with the same name (exact, case-insensitive)
+    const res = await fetch(`/api/admin/faces?filter=named&q=${encodeURIComponent(trimmed)}&page=1`);
+    const data = await res.json();
+    const exact = (data.persons as PersonSummary[]).find(
+      (p) => p.name.toLowerCase() === trimmed.toLowerCase() && p.id !== id
+    );
+    if (exact) {
+      setDuplicateCheck(exact);
+      return;
+    }
+
     setSaving(true);
     try {
       await fetch(`/api/admin/faces/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: nameInput.trim() }),
+        body: JSON.stringify({ name: trimmed }),
       });
       goToNext();
     } finally {
@@ -422,7 +436,7 @@ export default function FaceDetailClient() {
                 ref={nameInputRef}
                 type="text"
                 value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
+                onChange={(e) => { setNameInput(e.target.value); setDuplicateCheck(null); }}
                 placeholder="Enter name…"
                 className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
               />
@@ -434,6 +448,30 @@ export default function FaceDetailClient() {
                 {saving ? "Saving…" : "Save name"}
               </button>
             </form>
+
+            {/* Duplicate name conflict */}
+            {duplicateCheck && (
+              <div className="mt-3 p-3 bg-yellow-900/30 border border-yellow-700/50 rounded-lg space-y-2">
+                <p className="text-xs text-yellow-300 leading-snug">
+                  <span className="font-semibold">{duplicateCheck.name}</span> already exists ({duplicateCheck.photoCount} photos). Merge or choose a different name?
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    onClick={() => { setDuplicateCheck(null); handleMerge(duplicateCheck.id); }}
+                    disabled={mergingId !== null}
+                    className="w-full text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white px-2 py-1.5 rounded-lg transition-colors text-left"
+                  >
+                    {mergingId ? "Merging…" : `Merge into ${duplicateCheck.name}`}
+                  </button>
+                  <button
+                    onClick={() => { setDuplicateCheck(null); setTimeout(() => nameInputRef.current?.focus(), 50); }}
+                    className="w-full text-xs text-gray-400 hover:text-white px-2 py-1.5 rounded-lg transition-colors text-left"
+                  >
+                    Enter a different name
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Quick-merge chips — recently named people */}
