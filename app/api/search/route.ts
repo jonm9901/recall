@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : null;
   const tag = searchParams.get("tag") ?? "";
   const minRating = searchParams.get("minRating") ? parseFloat(searchParams.get("minRating")!) : null;
+  const personIds = searchParams.get("personIds")?.split(",").filter(Boolean) ?? [];
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
 
   // Build the where clause
@@ -52,6 +53,13 @@ export async function GET(req: NextRequest) {
   // Minimum average rating filter
   if (minRating) {
     where.avgRating = { gte: minRating };
+  }
+
+  // People filter — AND logic: photo must include all selected people
+  if (personIds.length > 0) {
+    where.AND = personIds.map((personId) => ({
+      people: { some: { personId } },
+    }));
   }
 
   const [total, photos] = await Promise.all([
