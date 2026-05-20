@@ -26,8 +26,7 @@ export async function GET(req: NextRequest) {
   const secondarySort: OrderBy =
     sort === "alpha" ? { name: "asc" } :
     sort === "recent" ? { createdAt: "desc" } :
-    filter === "unnamed" ? { createdAt: "asc" } :
-    { photos: { _count: "desc" } }; // popular (default)
+    { photos: { _count: "desc" } }; // popular — most-photographed first for both named and unnamed
 
   const orderBy = [{ deferred: "asc" }, secondarySort];
 
@@ -65,6 +64,9 @@ export async function GET(req: NextRequest) {
         samplePhotos: p.photos.map((pp) => ({
           photoId: pp.photoId,
           thumbnailUrl: pp.photo.thumbnailUrl,
+          boundingBox: (pp.boundingBoxTop != null && pp.boundingBoxLeft != null && pp.boundingBoxWidth != null && pp.boundingBoxHeight != null)
+            ? { top: pp.boundingBoxTop, left: pp.boundingBoxLeft, width: pp.boundingBoxWidth, height: pp.boundingBoxHeight }
+            : null,
         })),
       })),
       total,

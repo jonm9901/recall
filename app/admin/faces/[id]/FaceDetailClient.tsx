@@ -61,6 +61,19 @@ export default function FaceDetailClient() {
   const [mergingId, setMergingId] = useState<string | null>(null);
   const mergeSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Undo last merge
+  type UndoSnapshot = {
+    fromPerson: { name: string; rekognitionFaceId?: string | null; coverPhotoUrl?: string | null; deferred: boolean };
+    movedPhotoIds: string[];
+    intoId: string;
+  };
+  const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null);
+  const [undoing, setUndoing] = useState(false);
+
+  // Next person in queue + recently-named for quick-merge chips
+  const [nextPersonId, setNextPersonId] = useState<string | null>(null);
+  const [recentPersons, setRecentPersons] = useState<PersonSummary[]>([]);
+
   // Similar cluster suggestions
   const [suggestions, setSuggestions] = useState<SimilarSuggestion[] | null>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -96,6 +109,15 @@ export default function FaceDetailClient() {
   useEffect(() => {
     load();
     loadNamedPersons("");
+    // Prefetch next unnamed person and recently-named people for chips
+    fetch(`/api/admin/faces/next?currentId=${id}`)
+      .then((r) => r.json())
+      .then((d) => setNextPersonId(d.nextId ?? null))
+      .catch(() => {});
+    fetch(`/api/admin/faces?filter=named&sort=popular&page=1`)
+      .then((r) => r.json())
+      .then((d) => setRecentPersons((d.persons ?? []).slice(0, 6)))
+      .catch(() => {});
     setTimeout(() => nameInputRef.current?.focus(), 100);
 
     // Restore suggestions only if they were saved for this specific person
@@ -113,7 +135,34 @@ export default function FaceDetailClient() {
         sessionStorage.removeItem("face-suggestions");
       }
     }
+
+    // Restore undo snapshot if a merge was just made into this person
+    const storedUndo = sessionStorage.getItem(`face-undo-${id}`);
+    if (storedUndo) {
+      try {
+        setUndoSnapshot(JSON.parse(storedUndo));
+      } catch {
+        sessionStorage.removeItem(`face-undo-${id}`);
+      }
+    }
   }, [load, loadNamedPersons]);
+
+  const goToNext = useCallback(() => {
+    sessionStorage.removeItem("face-suggestions");
+    if (nextPersonId) router.push(`/admin/faces/${nextPersonId}`);
+    else router.push("/admin/faces?filter=unnamed");
+  }, [nextPersonId, router]);
+
+  // Keyboard shortcuts — only when not typing in an input
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "ArrowRight" || e.key === "n") goToNext();
+      if (e.key === "Escape") router.push("/admin/faces?filter=unnamed");
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [goToNext, router]);
 
   function handleMergeSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
     const q = e.target.value;
@@ -137,7 +186,7 @@ export default function FaceDetailClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: nameInput.trim() }),
       });
-      router.push("/admin/faces?filter=unnamed");
+      goToNext();
     } finally {
       setSaving(false);
     }
@@ -205,7 +254,12 @@ export default function FaceDetailClient() {
       });
       if (!res.ok) return;
       const data = await res.json();
+      // Save undo snapshot keyed to the merge target so it shows when visiting that person
       if (stayOnPage) {
+        // Store undo keyed to where we're navigating (the merge target)
+        if (data.undo) {
+          sessionStorage.setItem(`face-undo-${data.mergedIntoId}`, JSON.stringify(data.undo));
+        }
         // Persist remaining suggestions tagged to the destination person ID
         const remaining = (suggestions ?? []).filter((s) => s.id !== intoId);
         if (remaining.length > 0) {
@@ -215,11 +269,37 @@ export default function FaceDetailClient() {
         }
         router.push(`/admin/faces/${data.mergedIntoId}`);
       } else {
+        // Store undo keyed to wherever goToNext() will land
+        if (data.undo && nextPersonId) {
+          sessionStorage.setItem(`face-undo-${nextPersonId}`, JSON.stringify(data.undo));
+        }
         sessionStorage.removeItem("face-suggestions");
-        router.push("/admin/faces?filter=unnamed");
+        goToNext();
       }
     } finally {
       setMergingId(null);
+    }
+  }
+
+  async function handleUndo() {
+    if (!undoSnapshot) return;
+    setUndoing(true);
+    try {
+      const res = await fetch(`/api/admin/faces/${undoSnapshot.intoId}/unmerge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromPerson: undoSnapshot.fromPerson,
+          movedPhotoIds: undoSnapshot.movedPhotoIds,
+        }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      sessionStorage.removeItem(`face-undo-${id}`);
+      setUndoSnapshot(null);
+      router.push(`/admin/faces/${data.restoredPersonId}`);
+    } finally {
+      setUndoing(false);
     }
   }
 
@@ -228,7 +308,7 @@ export default function FaceDetailClient() {
     setDeleting(true);
     try {
       await fetch(`/api/admin/faces/${id}`, { method: "DELETE" });
-      router.push("/admin/faces?filter=unnamed");
+      goToNext();
     } finally {
       setDeleting(false);
     }
@@ -254,8 +334,8 @@ export default function FaceDetailClient() {
       if (!res.ok) return;
       const data = await res.json();
       if (data.deferred) {
-        // Deferred — go back to the list so the user can keep working
-        router.push("/admin/faces?filter=unnamed");
+        // Deferred — advance to next unnamed person
+        goToNext();
       } else {
         // Un-deferred — update local state
         setPerson((prev) => prev ? { ...prev, deferred: false } : prev);
@@ -298,7 +378,38 @@ export default function FaceDetailClient() {
           {person.name ? person.name : <span className="text-gray-500 italic">Unnamed</span>}
         </span>
         <span className="text-sm text-gray-500">{person.photoCount} photos</span>
+        <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={goToNext}
+            className="text-sm px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 hover:text-white"
+          >
+            {nextPersonId ? "Next →" : "Done ✓"}
+          </button>
+        </div>
       </header>
+
+      {undoSnapshot && (
+        <div className="bg-yellow-900/30 border-b border-yellow-700/50 px-6 py-2 flex items-center gap-3 text-sm">
+          <span className="text-yellow-300">
+            Merged <span className="font-medium">{undoSnapshot.fromPerson.name || "Unnamed"}</span> into this person
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={handleUndo}
+              disabled={undoing}
+              className="text-xs bg-yellow-700 hover:bg-yellow-600 disabled:opacity-40 text-white px-3 py-1 rounded-lg transition-colors"
+            >
+              {undoing ? "Undoing…" : "Undo merge"}
+            </button>
+            <button
+              onClick={() => { sessionStorage.removeItem(`face-undo-${id}`); setUndoSnapshot(null); }}
+              className="text-yellow-600 hover:text-yellow-400 text-xs transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex h-[calc(100vh-57px)]">
         {/* Sidebar */}
@@ -324,6 +435,33 @@ export default function FaceDetailClient() {
               </button>
             </form>
           </div>
+
+          {/* Quick-merge chips — recently named people */}
+          {recentPersons.length > 0 && (
+            <div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Quick merge</div>
+              <div className="flex flex-col gap-1">
+                {recentPersons.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleMerge(p.id)}
+                    disabled={mergingId !== null}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 disabled:opacity-40 transition-colors text-left group"
+                    title={`Merge into ${p.name}`}
+                  >
+                    <div className="w-7 h-7 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                      {p.coverPhotoUrl
+                        ? <img src={p.coverPhotoUrl} alt={p.name} className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">?</div>
+                      }
+                    </div>
+                    <span className="text-xs text-gray-300 group-hover:text-white truncate">{p.name}</span>
+                    {mergingId === p.id && <span className="text-xs text-gray-500 ml-auto">…</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Avatar */}
           <div>
@@ -620,6 +758,13 @@ export default function FaceDetailClient() {
             )}
           </div>
         </main>
+      </div>
+
+      {/* Keyboard shortcut reference */}
+      <div className="border-t border-gray-800/60 px-6 py-2 flex items-center gap-6 text-xs text-gray-700">
+        <span>Keyboard shortcuts:</span>
+        <span><kbd className="font-mono bg-gray-800 px-1 rounded">n</kbd> or <kbd className="font-mono bg-gray-800 px-1 rounded">→</kbd> next person</span>
+        <span><kbd className="font-mono bg-gray-800 px-1 rounded">Esc</kbd> back to list</span>
       </div>
     </div>
   );
