@@ -26,6 +26,8 @@ export default function SearchPage() {
   const [minRating, setMinRating] = useState("");
   const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
   const [namedPeople, setNamedPeople] = useState<NamedPerson[]>([]);
+  const [peopleExpanded, setPeopleExpanded] = useState(true);
+  const [peopleSort, setPeopleSort] = useState<"popular" | "alpha">("popular");
   const [view, setView] = useState<View>("grid");
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [total, setTotal] = useState(0);
@@ -103,7 +105,7 @@ export default function SearchPage() {
   // Load named people and recent photos on mount
   useEffect(() => {
     search("", "", "", "", [], 1);
-    fetch("/api/admin/faces?filter=named&sort=popular&page=1&pageSize=100")
+    fetch("/api/admin/faces?filter=named&sort=popular&page=1")
       .then((r) => r.json())
       .then((d) => setNamedPeople(d.persons ?? []))
       .catch(() => {});
@@ -152,7 +154,7 @@ export default function SearchPage() {
 
       {/* Search bar */}
       <div className="border-b border-gray-800 px-6 py-4">
-        <form onSubmit={handleSubmit} className="flex gap-2 max-w-3xl">
+        <form onSubmit={handleSubmit} className="flex gap-2 max-w-4xl">
           <div className="relative flex-1">
             <input
               ref={inputRef}
@@ -223,32 +225,76 @@ export default function SearchPage() {
         {/* People filter */}
         {namedPeople.length > 0 && (
           <div className="mt-3">
-            <div className="text-xs text-gray-600 mb-2">People</div>
-            <div className="flex flex-wrap gap-2">
-              {namedPeople.map((p) => {
-                const selected = selectedPersonIds.has(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => handlePersonToggle(p.id)}
-                    title={`${p.name} (${p.photoCount} photos)`}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs transition-colors ${
-                      selected
-                        ? "bg-blue-600 border-blue-500 text-white"
-                        : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
-                    }`}
-                  >
-                    <div className="w-4 h-4 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
-                      {p.coverPhotoUrl
-                        ? <img src={p.coverPhotoUrl} alt={p.name} className="w-full h-full object-cover" />
-                        : <div className="w-full h-full bg-gray-600" />
-                      }
-                    </div>
-                    {p.name}
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-3 mb-2">
+              <button
+                type="button"
+                onClick={() => setPeopleExpanded((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                <svg
+                  width="10" height="10" viewBox="0 0 10 10" fill="none"
+                  className={`transition-transform ${peopleExpanded ? "rotate-180" : ""}`}
+                >
+                  <path d="M1 3l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                People
+                {selectedPersonIds.size > 0 && (
+                  <span className="bg-blue-600 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none">
+                    {selectedPersonIds.size}
+                  </span>
+                )}
+              </button>
+              {peopleExpanded && (
+                <div className="flex gap-0.5">
+                  {(["popular", "alpha"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setPeopleSort(s)}
+                      className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                        peopleSort === s ? "bg-gray-700 text-white" : "text-gray-600 hover:text-gray-400"
+                      }`}
+                    >
+                      {s === "popular" ? "Popular" : "A–Z"}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+            {peopleExpanded && (
+              <div className="flex flex-wrap gap-1.5">
+                {[...namedPeople]
+                  .sort((a, b) =>
+                    peopleSort === "alpha"
+                      ? a.name.localeCompare(b.name)
+                      : b.photoCount - a.photoCount
+                  )
+                  .map((p) => {
+                    const selected = selectedPersonIds.has(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handlePersonToggle(p.id)}
+                        title={`${p.name} (${p.photoCount} photos)`}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs transition-colors ${
+                          selected
+                            ? "bg-blue-600 border-blue-500 text-white"
+                            : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                        }`}
+                      >
+                        <div className="w-4 h-4 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                          {p.coverPhotoUrl
+                            ? <img src={p.coverPhotoUrl} alt={p.name} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full bg-gray-600" />
+                          }
+                        </div>
+                        {p.name}
+                      </button>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )}
       </div>
