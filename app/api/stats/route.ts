@@ -97,15 +97,15 @@ export async function GET() {
       totalTags,
       ratedPhotos,
     },
-    topTags: topTags.map((r) => ({ tag: r.tag, count: Number(r.count) })),
-    photosByYear: photosByYear.map((r) => ({ year: r.year, count: Number(r.count) })),
-    topLocations: topLocations.map((r) => ({
+    topTags: (topTags as { tag: string; count: bigint }[]).map((r) => ({ tag: r.tag, count: Number(r.count) })),
+    photosByYear: (photosByYear as { year: number; count: bigint }[]).map((r) => ({ year: r.year, count: Number(r.count) })),
+    topLocations: (topLocations as { city: string; country: string | null; count: bigint }[]).map((r) => ({
       label: [r.city, r.country].filter(Boolean).join(", "),
       count: Number(r.count),
     })),
-    topPeople: topPeople.map((r) => ({ name: r.name, count: Number(r.count) })),
-    ratingDist: ratingDist.map((r) => ({ stars: r.stars, count: Number(r.count) })),
-    topGalleries: topGalleries.map((r) => ({ title: r.title, count: Number(r.count) })),
-    tagSources: tagSources.map((r) => ({ source: r.source, count: Number(r.count) })),
+    topPeople: (topPeople as { name: string; count: bigint }[]).map((r) => ({ name: r.name, count: Number(r.count) })),
+    ratingDist: (ratingDist as { stars: number; count: bigint }[]).map((r) => ({ stars: r.stars, count: Number(r.count) })),
+    topGalleries: (topGalleries as { title: string; count: bigint }[]).map((r) => ({ title: r.title, count: Number(r.count) })),
+    tagSources: (tagSources as { source: string; count: bigint }[]).map((r) => ({ source: r.source, count: Number(r.count) })),
   });
 }
