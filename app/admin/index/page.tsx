@@ -7,7 +7,7 @@ export default async function IndexPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const [total, indexed, faceCount, tagCount, geocodedCount, lastIndexed] = await Promise.all([
+  const [total, indexed, faceCount, tagCount, geocodedCount, lastIndexed, visionTagged, lastVisionTagged] = await Promise.all([
     prisma.photo.count(),
     prisma.photo.count({ where: { indexedAt: { not: null } } }),
     prisma.photoPerson.count(),
@@ -17,6 +17,12 @@ export default async function IndexPage() {
       where: { indexedAt: { not: null } },
       orderBy: { indexedAt: "desc" },
       select: { indexedAt: true },
+    }),
+    prisma.photo.count({ where: { hidden: false, visionTaggedAt: { not: null } } }),
+    prisma.photo.findFirst({
+      where: { visionTaggedAt: { not: null } },
+      orderBy: { visionTaggedAt: "desc" },
+      select: { visionTaggedAt: true },
     }),
   ]);
 
@@ -31,7 +37,7 @@ export default async function IndexPage() {
 
         <h1 className="text-2xl font-bold mb-2">Photo Indexing</h1>
         <p className="text-gray-400 text-sm mb-8">
-          Run AWS Rekognition to detect faces and scene tags, and reverse-geocode GPS coordinates.
+          Run AWS Rekognition indexing and Gemini vision tagging pipelines.
         </p>
 
         <IndexClient
@@ -43,6 +49,12 @@ export default async function IndexPage() {
             tagCount,
             geocodedCount,
             lastIndexedAt: lastIndexed?.indexedAt?.toISOString() ?? null,
+          }}
+          initialVision={{
+            total,
+            visionTagged,
+            visionUntagged: total - visionTagged,
+            lastVisionTaggedAt: lastVisionTagged?.visionTaggedAt?.toISOString() ?? null,
           }}
         />
       </div>

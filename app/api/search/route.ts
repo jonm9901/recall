@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     gallery: { excluded: false },
   };
 
-  // Text search across gallery title, locationName, city, tags
+  // Text search across gallery title, locationName, city, tags, and vision caption
   if (q) {
     where.OR = [
       { gallery: { title: { contains: q, mode: "insensitive" } } },
@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
       { region: { contains: q, mode: "insensitive" } },
       { country: { contains: q, mode: "insensitive" } },
       { tags: { some: { tag: { contains: q, mode: "insensitive" } } } },
+      { caption: { contains: q, mode: "insensitive" } },
     ];
   }
 
