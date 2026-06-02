@@ -53,15 +53,16 @@ export async function POST(
   // Attach similarity score to each result and sort highest first
   const similarityMap = new Map(matches.map((m) => [m.faceId, m.similarity]));
 
-  const suggestions = matchedPersons
-    .map((p: (typeof matchedPersons)[number]) => ({
+  type Suggestion = { id: string; name: string; coverPhotoUrl: string | null; photoCount: number; similarity: number };
+  const suggestions: Suggestion[] = matchedPersons
+    .map((p: (typeof matchedPersons)[number]): Suggestion => ({
       id: p.id,
       name: p.name,
       coverPhotoUrl: p.coverPhotoUrl ?? p.photos[0]?.photo.thumbnailUrl ?? null,
       photoCount: p._count.photos,
       similarity: Math.round(similarityMap.get(p.rekognitionFaceId!) ?? 0),
     }))
-    .sort((a, b) => b.similarity - a.similarity);
+    .sort((a: Suggestion, b: Suggestion) => b.similarity - a.similarity);
 
   return NextResponse.json({ suggestions });
 }
