@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
   const q = searchParams.get("q") ?? "";
   const sort = searchParams.get("sort") ?? "popular";
-  const PAGE_SIZE = 48;
+  const PAGE_SIZE = Math.min(Number(searchParams.get("pageSize") ?? 48), 2000);
 
   const where: Record<string, unknown> = {};
   if (filter === "unnamed") where.name = "";

@@ -58,7 +58,7 @@ export default function FaceDetailClient() {
   const [namedPersons, setNamedPersons] = useState<PersonSummary[]>([]);
   const [namedTotal, setNamedTotal] = useState(0);
   const [mergeSearch, setMergeSearch] = useState("");
-  const [mergeSort, setMergeSort] = useState<"popular" | "alpha" | "recent">("popular");
+  const [mergeSort, setMergeSort] = useState<"popular" | "alpha" | "recent">("alpha");
   const [mergingId, setMergingId] = useState<string | null>(null);
   const mergeSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -98,8 +98,8 @@ export default function FaceDetailClient() {
     }
   }, [id, router]);
 
-  const loadNamedPersons = useCallback(async (q: string, sort: "popular" | "alpha" | "recent" = "popular") => {
-    const params = new URLSearchParams({ filter: "named", page: "1", sort });
+  const loadNamedPersons = useCallback(async (q: string, sort: "popular" | "alpha" | "recent" = "alpha") => {
+    const params = new URLSearchParams({ filter: "named", page: "1", sort, pageSize: "2000" });
     if (q) params.set("q", q);
     const res = await fetch(`/api/admin/faces?${params}`);
     const data = await res.json();
@@ -115,9 +115,9 @@ export default function FaceDetailClient() {
       .then((r) => r.json())
       .then((d) => setNextPersonId(d.nextId ?? null))
       .catch(() => {});
-    fetch(`/api/admin/faces?filter=named&sort=popular&page=1`)
+    fetch(`/api/admin/faces?filter=named&sort=popular&page=1&pageSize=15`)
       .then((r) => r.json())
-      .then((d) => setRecentPersons((d.persons ?? []).slice(0, 6)))
+      .then((d) => setRecentPersons((d.persons ?? []).slice(0, 15)))
       .catch(() => {});
     setTimeout(() => nameInputRef.current?.focus(), 100);
 
