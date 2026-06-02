@@ -55,13 +55,13 @@ export async function GET(req: NextRequest) {
     ]);
 
     return NextResponse.json({
-      persons: persons.map((p) => ({
+      persons: persons.map((p: (typeof persons)[number]) => ({
         id: p.id,
         name: p.name,
         deferred: p.deferred,
         coverPhotoUrl: p.coverPhotoUrl ?? p.photos[0]?.photo.thumbnailUrl ?? null,
         photoCount: p._count.photos,
-        samplePhotos: p.photos.map((pp) => ({
+        samplePhotos: p.photos.map((pp: (typeof p.photos)[number]) => ({
           photoId: pp.photoId,
           thumbnailUrl: pp.photo.thumbnailUrl,
           boundingBox: (pp.boundingBoxTop != null && pp.boundingBoxLeft != null && pp.boundingBoxWidth != null && pp.boundingBoxHeight != null)

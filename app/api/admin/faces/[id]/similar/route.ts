@@ -54,7 +54,7 @@ export async function POST(
   const similarityMap = new Map(matches.map((m) => [m.faceId, m.similarity]));
 
   const suggestions = matchedPersons
-    .map((p) => ({
+    .map((p: (typeof matchedPersons)[number]) => ({
       id: p.id,
       name: p.name,
       coverPhotoUrl: p.coverPhotoUrl ?? p.photos[0]?.photo.thumbnailUrl ?? null,
