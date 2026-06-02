@@ -7,7 +7,8 @@ export default async function UsersPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const [users, userCount] = await Promise.all([
+  type UserRow = { id: string; name: string | null; email: string | null; invitedById: string | null; createdAt: Date };
+  const [usersRaw, userCount] = await Promise.all([
     prisma.user.findMany({
       orderBy: { createdAt: "asc" },
       select: {
@@ -20,6 +21,7 @@ export default async function UsersPage() {
     }),
     prisma.user.count(),
   ]);
+  const users = usersRaw as UserRow[];
 
   const maxUsers = parseInt(process.env.MAX_USERS || "5", 10);
   const atCap = userCount >= maxUsers;
