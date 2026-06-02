@@ -169,7 +169,7 @@ export default function IndexClient({ initial, initialVision }: { initial: Index
         )}
 
         <div className="text-sm text-gray-500 space-y-1">
-          <p>Each photo gets a caption and contextual tags (occasion, activity, season, setting) via Gemini 2.0 Flash.</p>
+          <p>Each photo gets a caption and contextual tags (occasion, activity, season, setting) via Gemini 2.5 Flash.</p>
           <p>Existing Rekognition tags are passed as context so Gemini focuses on what&apos;s missing.</p>
           <p>Re-running is safe — already-tagged photos are skipped. ~$8–12 for all 39,700 photos.</p>
         </div>
