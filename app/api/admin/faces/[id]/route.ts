@@ -43,7 +43,7 @@ export async function GET(
     deferred: person.deferred,
     coverPhotoUrl: person.coverPhotoUrl,
     photoCount: person._count.photos,
-    photos: person.photos.map((pp) => ({
+    photos: person.photos.map((pp: (typeof person.photos)[number]) => ({
       photoId: pp.photoId,
       thumbnailUrl: pp.photo.thumbnailUrl,
       takenAt: pp.photo.takenAt,
