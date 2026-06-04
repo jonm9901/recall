@@ -21,7 +21,7 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
 const BATCH_SIZE = 10;
 const BATCH_DELAY_MS = 500;
@@ -91,6 +91,13 @@ Tags should cover what Rekognition misses: occasion (birthday, wedding, graduati
     }
     return parsed;
   } catch (err) {
+    const msg = String(err);
+    if (msg.includes("429") || msg.includes("quota") || msg.includes("Too Many Requests")) {
+      throw new Error(`QUOTA_EXCEEDED: ${msg}`);
+    }
+    if (msg.includes("blocked") || msg.includes("PROHIBITED") || msg.includes("Text not available")) {
+      throw new Error(`BLOCKED: ${msg}`);
+    }
     console.warn(`  [parse error] ${photo.id}: ${err}`);
     return null;
   }
@@ -128,20 +135,33 @@ async function main() {
       const existingTags = photo.tags.map((t: { tag: string }) => t.tag);
       process.stdout.write(`[${processed}/${total}] ${photo.id} … `);
 
-      const result = await tagPhoto({ id: photo.id, thumbnailUrl: photo.thumbnailUrl, existingTags });
+      let result;
+      try {
+        result = await tagPhoto({ id: photo.id, thumbnailUrl: photo.thumbnailUrl, existingTags });
+      } catch (err) {
+        const msg = String(err);
+        if (msg.includes("QUOTA_EXCEEDED")) {
+          console.log("\n⚠️  Daily quota exceeded. Resume tomorrow. Progress saved.\n");
+          break;
+        }
+        if (msg.includes("BLOCKED")) {
+          // Mark as done so it's not retried endlessly
+          await prisma.photo.update({ where: { id: photo.id }, data: { visionTaggedAt: new Date() } });
+          failed++;
+          console.log("blocked (skipped)");
+          continue;
+        }
+        throw err;
+      }
 
       if (!result) {
-        // Mark as tagged anyway to skip on retry (set visionTaggedAt so we don't loop forever)
-        await prisma.photo.update({
-          where: { id: photo.id },
-          data: { visionTaggedAt: new Date() },
-        });
+        // Leave visionTaggedAt null so it will be retried next run
         failed++;
-        console.log("failed");
+        console.log("skipped (will retry)");
         continue;
       }
 
-      // Save tags
+      // Save tags — no transaction needed; operations are idempotent on re-run
       const tagRows = result.tags.map((tag: string) => ({
         photoId: photo.id,
         tag: tag.toLowerCase().trim(),
@@ -149,18 +169,14 @@ async function main() {
         source: "gemini_vision",
       }));
 
-      await prisma.$transaction([
-        // Remove any prior gemini_vision tags for this photo (idempotent re-run)
-        prisma.photoTag.deleteMany({ where: { photoId: photo.id, source: "gemini_vision" } }),
-        ...(tagRows.length > 0 ? [prisma.photoTag.createMany({ data: tagRows })] : []),
-        prisma.photo.update({
-          where: { id: photo.id },
-          data: {
-            caption: result.caption,
-            visionTaggedAt: new Date(),
-          },
-        }),
-      ]);
+      await prisma.photoTag.deleteMany({ where: { photoId: photo.id, source: "gemini_vision" } });
+      if (tagRows.length > 0) {
+        await prisma.photoTag.createMany({ data: tagRows });
+      }
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { caption: result.caption, visionTaggedAt: new Date() },
+      });
 
       succeeded++;
       console.log(`ok — "${result.caption.slice(0, 60)}…" [${result.tags.join(", ")}]`);
