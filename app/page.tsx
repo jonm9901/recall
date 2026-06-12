@@ -115,7 +115,7 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between flex-shrink-0">
+      <header className="border-b border-gray-800 px-4 sm:px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2.5">
           {/* Eye + aperture logo */}
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -142,67 +142,73 @@ export default function SearchPage() {
           </svg>
           <span className="font-bold text-lg tracking-tight">Total Recall</span>
         </div>
-        <div className="flex items-center gap-4">
-          <a href="/stats" className="text-sm text-gray-400 hover:text-white transition-colors">Stats</a>
-          <a href="/admin/sync" className="text-sm text-gray-400 hover:text-white transition-colors">Sync</a>
-          <a href="/admin/index" className="text-sm text-gray-400 hover:text-white transition-colors">Index</a>
-          <a href="/admin/faces" className="text-sm text-gray-400 hover:text-white transition-colors">Faces</a>
-          <a href="/settings/users" className="text-sm text-gray-400 hover:text-white transition-colors">Settings</a>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <a href="/stats" className="hidden sm:block text-sm text-gray-400 hover:text-white transition-colors">Stats</a>
+          <a href="/admin/sync" className="hidden sm:block text-sm text-gray-400 hover:text-white transition-colors">Sync</a>
+          <a href="/admin/index" className="hidden sm:block text-sm text-gray-400 hover:text-white transition-colors">Index</a>
+          <a href="/admin/faces" className="hidden sm:block text-sm text-gray-400 hover:text-white transition-colors">Faces</a>
+          <a href="/settings/users" className="hidden sm:block text-sm text-gray-400 hover:text-white transition-colors">Settings</a>
           <a href="/api/auth/signout" className="text-sm text-gray-400 hover:text-white transition-colors">Sign out</a>
         </div>
       </header>
 
       {/* Search bar */}
-      <div className="border-b border-gray-800 px-6 py-4">
-        <form onSubmit={handleSubmit} className="flex gap-2 max-w-4xl">
-          <div className="relative flex-1">
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by place, event, tag…"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-            />
-            {(query || year || tag || minRating || selectedPersonIds.size > 0) && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-sm"
-              >
-                ✕
-              </button>
-            )}
+      <div className="border-b border-gray-800 px-4 sm:px-6 py-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2 max-w-4xl">
+          {/* Input + search button row */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by place, event, tag…"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              />
+              {(query || year || tag || minRating || selectedPersonIds.size > 0) && (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-sm"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors whitespace-nowrap"
+            >
+              Search
+            </button>
           </div>
-          {/* Year filter */}
-          <select
-            value={year}
-            onChange={(e) => handleYearChange(e.target.value)}
-            className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-          >
-            <option value="">All years</option>
-            {YEARS.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-          {/* Rating filter */}
-          <select
-            value={minRating}
-            onChange={(e) => handleMinRatingChange(e.target.value)}
-            className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-          >
-            <option value="">Any rating</option>
-            <option value="5">★★★★★ only</option>
-            <option value="4">★★★★ & up</option>
-            <option value="3">★★★ & up</option>
-            <option value="2">★★ & up</option>
-          </select>
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
-          >
-            Search
-          </button>
+          {/* Filters row */}
+          <div className="flex gap-2">
+            {/* Year filter */}
+            <select
+              value={year}
+              onChange={(e) => handleYearChange(e.target.value)}
+              className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+            >
+              <option value="">All years</option>
+              {YEARS.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            {/* Rating filter */}
+            <select
+              value={minRating}
+              onChange={(e) => handleMinRatingChange(e.target.value)}
+              className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+            >
+              <option value="">Any rating</option>
+              <option value="5">★★★★★ only</option>
+              <option value="4">★★★★ & up</option>
+              <option value="3">★★★ & up</option>
+              <option value="2">★★ & up</option>
+            </select>
+          </div>
         </form>
 
         {/* Tag pills */}
@@ -301,7 +307,7 @@ export default function SearchPage() {
 
       {/* Results header */}
       {searched && (
-        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-800 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-800 flex-shrink-0">
           <div className="text-sm text-gray-400">
             {loading ? "Searching…" : `${total.toLocaleString()} photo${total !== 1 ? "s" : ""}`}
           </div>
