@@ -102,14 +102,12 @@ export default function SearchPage() {
     inputRef.current?.focus();
   }
 
-  // Load named people and recent photos on mount
+  // Load named people on mount
   useEffect(() => {
-    search("", "", "", "", [], 1);
     fetch("/api/admin/faces?filter=named&sort=popular&page=1")
       .then((r) => r.json())
       .then((d) => setNamedPeople(d.persons ?? []))
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
