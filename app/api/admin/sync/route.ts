@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { spawn } from "child_process";
-import path from "path";
+import { runIncrementalSync } from "@/lib/smugmug-sync";
 
 export async function POST() {
   const session = await auth();
@@ -10,27 +9,16 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  // Run smugmug-sync.ts as a child process so it can run to completion
-  // without blocking the HTTP response
-  const scriptPath = path.join(process.cwd(), "scripts/smugmug-sync.ts");
-  const child = spawn(
-    "npx",
-    ["ts-node", "--project", "tsconfig.scripts.json", scriptPath],
-    {
-      detached: true,
-      stdio: "ignore",
-      env: process.env,
-    }
-  );
-  child.unref();
-
-  // Record sync start time
-  await prisma.gallery.updateMany({
-    where: {},
-    data: {}, // no-op just to check DB connectivity
-  });
-
-  return NextResponse.json({ ok: true, message: "Sync started in background." });
+  try {
+    const result = await runIncrementalSync();
+    return NextResponse.json({ ok: true, result });
+  } catch (err) {
+    console.error("Sync failed:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Sync failed." },
+      { status: 500 }
+    );
+  }
 }
 
 export async function GET() {

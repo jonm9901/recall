@@ -1,0 +1,30 @@
+name: SmugMug Sync
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Run SmugMug sync
+        run: npx ts-node --project tsconfig.scripts.json scripts/smugmug-sync.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SMUGMUG_API_KEY: ${{ secrets.SMUGMUG_API_KEY }}
+          SMUGMUG_API_SECRET: ${{ secrets.SMUGMUG_API_SECRET }}
+          SMUGMUG_ACCESS_TOKEN: ${{ secrets.SMUGMUG_ACCESS_TOKEN }}
+          SMUGMUG_ACCESS_SECRET: ${{ secrets.SMUGMUG_ACCESS_SECRET }}
+          SMUGMUG_SITE_PASSWORD: ${{ secrets.SMUGMUG_SITE_PASSWORD }}
+          SMUGMUG_ALBUM_BASE_URL: ${{ secrets.SMUGMUG_ALBUM_BASE_URL }}

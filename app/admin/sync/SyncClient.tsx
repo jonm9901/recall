@@ -9,10 +9,21 @@ interface SyncStats {
   lastSyncAt: string | null;
 }
 
+interface SyncResult {
+  galleriesChecked: number;
+  galleriesUpdated: number;
+  galleriesSkipped: number;
+  galleriesExcluded: number;
+  photosSynced: number;
+  photosFailed: number;
+  elapsedMs: number;
+}
+
 export default function SyncClient({ initial }: { initial: SyncStats }) {
   const [stats, setStats] = useState(initial);
   const [syncing, setSyncing] = useState(false);
-  const [message, setMessage] = useState("");
+  const [result, setResult] = useState<SyncResult | null>(null);
+  const [error, setError] = useState("");
 
   async function refreshStats() {
     const res = await fetch("/api/admin/sync");
@@ -24,31 +35,20 @@ export default function SyncClient({ initial }: { initial: SyncStats }) {
 
   async function startSync() {
     setSyncing(true);
-    setMessage("");
+    setResult(null);
+    setError("");
 
     const res = await fetch("/api/admin/sync", { method: "POST" });
     const data = await res.json();
 
-    if (res.ok) {
-      setMessage(
-        "Sync started in the background. This can take several minutes for large libraries. Refresh the counts below when done."
-      );
+    if (res.ok && data.result) {
+      setResult(data.result);
+      await refreshStats();
     } else {
-      setMessage(`Error: ${data.error}`);
-      setSyncing(false);
-      return;
+      setError(data.error ?? "Sync failed.");
     }
 
-    // Poll stats every 10s while syncing
-    const interval = setInterval(async () => {
-      await refreshStats();
-    }, 10000);
-
-    // Stop polling after 10 minutes
-    setTimeout(() => {
-      clearInterval(interval);
-      setSyncing(false);
-    }, 600000);
+    setSyncing(false);
   }
 
   return (
@@ -88,22 +88,47 @@ export default function SyncClient({ initial }: { initial: SyncStats }) {
         </button>
         <button
           onClick={refreshStats}
-          className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors"
+          disabled={syncing}
+          className="px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
         >
           Refresh counts
         </button>
       </div>
 
-      {message && (
+      {syncing && (
         <div className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-300">
-          {message}
+          Checking galleries against SmugMug and syncing any changes…
+        </div>
+      )}
+
+      {result && !syncing && (
+        <div className="bg-gray-900 border border-green-800 rounded-lg px-4 py-3 text-sm space-y-1">
+          <p className="text-green-400 font-medium">
+            Sync complete in {(result.elapsedMs / 1000).toFixed(1)}s
+          </p>
+          <div className="text-gray-300 grid grid-cols-2 gap-x-6 gap-y-0.5 mt-2">
+            <span>Galleries checked</span><span>{result.galleriesChecked}</span>
+            <span>Galleries updated</span><span>{result.galleriesUpdated}</span>
+            <span>Galleries skipped (no change)</span><span>{result.galleriesSkipped}</span>
+            <span>Galleries excluded</span><span>{result.galleriesExcluded}</span>
+            <span>Photos synced</span><span>{result.photosSynced}</span>
+            {result.photosFailed > 0 && (
+              <><span className="text-yellow-400">Photos failed</span><span className="text-yellow-400">{result.photosFailed}</span></>
+            )}
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-gray-900 border border-red-800 rounded-lg px-4 py-3 text-sm text-red-400">
+          {error}
         </div>
       )}
 
       <div className="text-sm text-gray-500 space-y-1">
-        <p>The sync runs in the background and may take several minutes for 39,000+ photos.</p>
+        <p>Incremental sync — only fetches photos for galleries where the count changed. Typically completes in seconds.</p>
         <p>Galleries protected by a secondary password are automatically skipped and counted as excluded.</p>
-        <p>Re-running sync is safe — it upserts records and skips already-indexed photos.</p>
+        <p>For large bulk imports, use the GitHub Actions workflow instead.</p>
       </div>
     </div>
   );
