@@ -6,7 +6,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -18,8 +18,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Run SmugMug sync
-        run: npx ts-node --project tsconfig.scripts.json scripts/smugmug-sync.ts
+      - name: Run SmugMug incremental sync
+        run: npx ts-node --project tsconfig.scripts.json scripts/incremental-sync.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SMUGMUG_API_KEY: ${{ secrets.SMUGMUG_API_KEY }}
