@@ -164,9 +164,7 @@ export async function fetchAllAlbums(): Promise<SmugmugAlbum[]> {
     const page = data.Response;
     albums.push(...(page.Album || []));
 
-    url = page.Pages?.NextPage
-      ? `${API_BASE}${page.Pages.NextPage}`
-      : null;
+    url = page.Pages?.NextPage ?? null;
   }
 
   return albums;
@@ -184,9 +182,7 @@ export async function fetchAlbumImages(album: SmugmugAlbum): Promise<SmugmugImag
     const page = data.Response;
     images.push(...(page.AlbumImage || []));
 
-    url = page.Pages?.NextPage
-      ? `${API_BASE}${page.Pages.NextPage}`
-      : null;
+    url = page.Pages?.NextPage ?? null;
   }
 
   return images;
