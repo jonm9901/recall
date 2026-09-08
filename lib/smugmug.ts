@@ -2,7 +2,8 @@ import crypto from "crypto";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const OAuth = require("oauth-1.0a");
 
-const API_BASE = "https://api.smugmug.com/api/v2";
+const SMUGMUG_HOST = "https://api.smugmug.com";
+const API_BASE = `${SMUGMUG_HOST}/api/v2`;
 
 function getAlbumBaseUrl(): string {
   const raw = process.env.SMUGMUG_ALBUM_BASE_URL || "";
@@ -30,7 +31,13 @@ function getAccessToken() {
 }
 
 export async function smugmugGet<T = unknown>(path: string): Promise<T> {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  // Absolute paths (/api/v2/...) from SmugMug NextPage/URI fields need only the host prepended.
+  // Relative paths (e.g. "!authuser") get the full API_BASE.
+  const url = path.startsWith("http")
+    ? path
+    : path.startsWith("/")
+    ? `${SMUGMUG_HOST}${path}`
+    : `${API_BASE}${path}`;
   const oauth = getOAuthClient();
   const authHeader = oauth.toHeader(
     oauth.authorize({ url, method: "GET" }, getAccessToken())
@@ -175,7 +182,7 @@ export async function fetchAlbumImages(album: SmugmugAlbum): Promise<SmugmugImag
   const albumImagesUri = album.Uris.AlbumImages?.Uri;
   if (!albumImagesUri) return images;
 
-  let url: string | null = `${API_BASE}${albumImagesUri}?count=100&start=1`;
+  let url: string | null = `${albumImagesUri}?count=100&start=1`;
 
   while (url) {
     const data: AlbumImagesResponse = await smugmugGet<AlbumImagesResponse>(url);
@@ -195,7 +202,7 @@ export async function fetchImageSizes(image: SmugmugImage): Promise<{ imageUrl: 
   }
 
   try {
-    const data = await smugmugGet<ImageSizesResponse>(`${API_BASE}${sizesUri}`);
+    const data = await smugmugGet<ImageSizesResponse>(sizesUri);
     const s = data.Response.ImageSizes;
     const imageUrl =
       s.X3LargeImageUrl ||
@@ -218,7 +225,7 @@ export async function fetchImageExif(
   if (!exifUri) return {};
 
   try {
-    const data = await smugmugGet<ImageExifResponse>(`${API_BASE}${exifUri}`);
+    const data = await smugmugGet<ImageExifResponse>(exifUri);
     const exif = data.Response.ImageExif;
     if (!exif) return {};
 
