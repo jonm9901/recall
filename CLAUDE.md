@@ -98,6 +98,15 @@ Phase 7 complete — ready for Phase 8 (Claude Vision Tagging)
 - Phase 6 — Face Labeling (cluster grid, name assignment, bounding box overlay, one-click merge)
 - Phase 7 — Star Ratings (inline 5-star widget, AI suggestion via Claude Haiku, avgRating filter in search)
 
+## Face matching / label propagation
+- After manually naming persons in `/admin/faces`, run the propagation script to auto-merge unnamed persons that Rekognition matches to named ones
+- Script: `npx ts-node --project tsconfig.scripts.json scripts/propagate-labels.ts`
+- Flags: `--dry-run` (default, no DB writes), `--auto-merge` (perform merges), `--threshold=N` (similarity %, default 85, min 75), `--limit=N` (cap named persons searched)
+- Rekognition cost: ~$0.001 per named person searched — negligible
+- Create a Neon branch snapshot before running `--auto-merge` as a safety net: `neonctl branches create --project-id withered-waterfall-64410361 --name <branch-name>`
+- Re-runnable: once an unnamed person is merged they're gone; re-running after more manual labeling propagates the next round
+- Lower the threshold (e.g. `--threshold=80`) to cast a wider net after the default pass
+
 ## Phase 4 notes
 - Rekognition collection: `recall-faces` (us-west-2)
 - Pipeline: DetectLabels (scene tags ≥70% confidence) + IndexFaces + SearchFaces (85% threshold for clustering) + Nominatim reverse geocoding
