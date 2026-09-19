@@ -75,6 +75,16 @@ export default function FaceDetailClient() {
   const [nextPersonId, setNextPersonId] = useState<string | null>(null);
   const [recentPersons, setRecentPersons] = useState<PersonSummary[]>([]);
 
+  // Identity suggestion
+  type IdentitySuggestion = {
+    suggestedName: string | null;
+    reasoning: string;
+    confidence: "high" | "medium" | "low";
+  };
+  const [identitySuggestion, setIdentitySuggestion] = useState<IdentitySuggestion | null>(null);
+  const [loadingIdentity, setLoadingIdentity] = useState(false);
+  const [identityError, setIdentityError] = useState("");
+
   // Similar cluster suggestions
   const [suggestions, setSuggestions] = useState<SimilarSuggestion[] | null>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -242,6 +252,25 @@ export default function FaceDetailClient() {
       setTimeout(() => setSuggestionsReady(true), 600);
     } finally {
       setLoadingSuggestions(false);
+    }
+  }
+
+  async function handleSuggestIdentity() {
+    setLoadingIdentity(true);
+    setIdentityError("");
+    setIdentitySuggestion(null);
+    try {
+      const res = await fetch(`/api/admin/faces/${id}/suggest-identity`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setIdentityError(data.error ?? "Suggestion failed");
+        return;
+      }
+      setIdentitySuggestion(data);
+    } catch {
+      setIdentityError("Network error");
+    } finally {
+      setLoadingIdentity(false);
     }
   }
 
@@ -470,6 +499,72 @@ export default function FaceDetailClient() {
                     Enter a different name
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Identity suggestion */}
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Identify</div>
+            <button
+              onClick={handleSuggestIdentity}
+              disabled={loadingIdentity || saving}
+              className="w-full text-xs bg-violet-800 hover:bg-violet-700 disabled:opacity-40 text-white px-3 py-2 rounded-lg transition-colors"
+            >
+              {loadingIdentity ? "Thinking…" : identitySuggestion ? "Try again" : "Suggest identity"}
+            </button>
+
+            {identityError && (
+              <p className="text-xs text-red-400 mt-2">{identityError}</p>
+            )}
+
+            {identitySuggestion && (
+              <div className="mt-2 p-3 bg-violet-900/20 border border-violet-700/40 rounded-lg space-y-2">
+                {identitySuggestion.suggestedName ? (
+                  <>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-white">{identitySuggestion.suggestedName}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                        identitySuggestion.confidence === "high"
+                          ? "bg-green-800/60 text-green-300"
+                          : identitySuggestion.confidence === "medium"
+                          ? "bg-yellow-800/60 text-yellow-300"
+                          : "bg-gray-700 text-gray-400"
+                      }`}>
+                        {identitySuggestion.confidence}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 leading-snug">{identitySuggestion.reasoning}</p>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => {
+                          setNameInput(identitySuggestion.suggestedName!);
+                          setIdentitySuggestion(null);
+                          setTimeout(() => nameInputRef.current?.focus(), 50);
+                        }}
+                        className="flex-1 text-xs bg-violet-600 hover:bg-violet-500 text-white px-2 py-1.5 rounded-lg transition-colors"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => setIdentitySuggestion(null)}
+                        className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1.5 rounded-lg transition-colors"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-gray-400 leading-snug">{identitySuggestion.reasoning}</p>
+                    <button
+                      onClick={() => setIdentitySuggestion(null)}
+                      className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                    >
+                      Dismiss
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
